@@ -20,10 +20,27 @@ public class BeatSharer
         IConfigurationRoot config = new ConfigurationBuilder().AddUserSecrets<BeatSharer>().Build();
 
         // Get songIDList
-        string listIndex = "2";
-        string address = String.Format("https://beat-sharer-default-rtdb.firebaseio.com/{0}.json?auth={1}", listIndex, config["BeatSharer:APIKey"]);
-        string songIDs = await client.GetStringAsync(address);
-        songIDList = songIDs.Trim('"').Split(',').ToList();
+        try
+        {
+            Console.Write("Enter an ID (0-255): ");
+            string? userInput = Console.ReadLine();
+            string address = String.Format("https://beat-sharer-default-rtdb.firebaseio.com/{0}.json?auth={1}", userInput, config["BeatSharer:APIKey"]);
+            string songIDs = await client.GetStringAsync(address);
+            if (songIDs == "null")
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("ID not found");
+                Console.ForegroundColor = ConsoleColor.Gray;
+                return;
+            }
+            songIDList = songIDs.Trim('"').Split(',').ToList();
+        }
+        catch (HttpRequestException)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("ID request failed");
+            Console.ForegroundColor = ConsoleColor.Gray;
+        }
 
         while (true)
         {
