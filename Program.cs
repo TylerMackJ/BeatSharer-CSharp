@@ -10,17 +10,17 @@ public class BeatSharer
 
     public static async Task Main()
     {
-        Console.Write("Would you like to upload your current song list (y/n): ");
+        Console.Write("Would you like to download a song list (y/n): ");
         string? userInput = Console.ReadLine();
         if (userInput != null && userInput == "y")
         {
-            await Upload.Run();
+            await Download.Run();
         }
-        Console.Write("Would you like to download a song list (y/n): ");
+        Console.Write("Would you like to upload your current song list (y/n): ");
         userInput = Console.ReadLine();
         if (userInput != null && userInput == "y")
         {
-            await Download.Run();
+            await Upload.Run();
         }
     }
 }

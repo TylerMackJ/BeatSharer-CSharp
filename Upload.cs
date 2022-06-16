@@ -28,19 +28,21 @@ public class Upload
             {
                 currentCode = int.Parse(response);
             }
-            catch (FormatException)
+            catch (FormatException e)
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine("Bad code '{0}' found. Defaulting to 0", response);
+                Console.WriteLine(e);
                 Console.WriteLine("Please report this occurance.");
                 Console.ForegroundColor = ConsoleColor.Gray;
                 currentCode = 0;
             }
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException e)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("Code request failed");
+            Console.WriteLine(e);
             Console.ForegroundColor = ConsoleColor.Gray;
             return;
         }
@@ -63,10 +65,11 @@ public class Upload
             Console.WriteLine("\nUploaded song list to {0} (Use this code to share your song list)", currentCode);
             Console.ForegroundColor = ConsoleColor.Gray;
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException e)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("Upload request failed");
+            Console.WriteLine(e);
             Console.ForegroundColor = ConsoleColor.Gray;
             return;
         }

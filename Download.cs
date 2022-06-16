@@ -29,10 +29,11 @@ public class Download
             }
             songIDList = songIDs.Trim('"').Split(',').ToList();
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException e)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("Code request failed");
+            Console.WriteLine(e);
             Console.ForegroundColor = ConsoleColor.Gray;
             return;
         }
@@ -133,21 +134,86 @@ public class Download
         {
             Console.WriteLine("Getting song info for {0}", songID);
             string address = String.Format("https://api.beatsaver.com/maps/id/{0}", songID);
-            SongInfo? songInfo = await BeatSharer.client.GetFromJsonAsync<SongInfo>(address);
-            if (songInfo != null)
+            HttpResponseMessage resp = await BeatSharer.client.GetAsync(address);
+
+            if ((int)resp.StatusCode == 429)
             {
-                songInfoList.Add(songInfo);
-                Console.WriteLine("Found song info for {0}", songID);
+                Console.WriteLine("Rate limit reached. Retrying");
+                await GetRatelimit(resp.Headers).Wait();
+                return;
+            }
+            else if (resp.StatusCode == System.Net.HttpStatusCode.OK)
+            {
+                SongInfo? songInfo = System.Text.Json.JsonSerializer.Deserialize<SongInfo>(await resp.Content.ReadAsStringAsync());
+
+                if (songInfo != null)
+                {
+                    songInfoList.Add(songInfo);
+                    Console.WriteLine("Found song info for {0}", songID);
+                }
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("Could not find song info for {0}", songID);
+                Console.ForegroundColor = ConsoleColor.Gray;
+                NoInfoList.Add(songID);
             }
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException e)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("Could not find song info for {0}", songID);
+            Console.WriteLine(e);
             Console.ForegroundColor = ConsoleColor.Gray;
             NoInfoList.Add(songID);
         }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+        }
     }
+
+    private static Ratelimit GetRatelimit(System.Net.Http.Headers.HttpResponseHeaders headers)
+    {
+        Ratelimit ratelimit = new Ratelimit();
+
+        if (headers.TryGetValues("Rate-Limit-Remaining", out IEnumerable<string>? _remaining))
+        {
+            var Remaining = _remaining.GetEnumerator();
+            Remaining.MoveNext();
+            ratelimit.Remaining = int.Parse(Remaining.Current);
+            Remaining.Dispose();
+        }
+
+        if (headers.TryGetValues("Rate-Limit-Reset", out IEnumerable<string>? _reset))
+        {
+            var Reset = _reset.GetEnumerator();
+            Reset.MoveNext();
+            ratelimit.Reset = int.Parse(Reset.Current);
+            ratelimit.ResetTime = UnixTimestampToDateTime((long)ratelimit.Reset);
+            Reset.Dispose();
+        }
+
+        if (headers.TryGetValues("Rate-Limit-Total", out IEnumerable<string>? _total))
+        {
+            var Total = _total.GetEnumerator();
+            Total.MoveNext();
+            ratelimit.Total = int.Parse(Total.Current);
+            Total.Dispose();
+        }
+
+        return ratelimit;
+    }
+
+    private static DateTime UnixTimestampToDateTime(double unixTime)
+    {
+        DateTime unixStart = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+        long unixTimeStampInTicks = (long)(unixTime * TimeSpan.TicksPerSecond);
+        return new DateTime(unixStart.Ticks + unixTimeStampInTicks, DateTimeKind.Utc);
+    }
+
+
 
     private static Task DownloadSong(SongInfo songInfo)
     {
@@ -178,11 +244,25 @@ public class Download
                 DownloadedList.Add(songInfo);
             }
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException e)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("Failed download for {0}", songInfo.GetSongTitle());
+            Console.WriteLine(e);
             Console.ForegroundColor = ConsoleColor.Gray;
         }
     }
+
+    private class Ratelimit
+    {
+        public int? Remaining { get; set; }
+        public int? Total { get; set; }
+        public int? Reset { get; set; }
+        public DateTime ResetTime { get; set; }
+        public async Task Wait()
+        {
+            await Task.Delay(new TimeSpan(Math.Max(ResetTime.Ticks - DateTime.UtcNow.Ticks, 0)));
+        }
+    }
 }
+

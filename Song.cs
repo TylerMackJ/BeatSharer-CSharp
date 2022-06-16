@@ -94,6 +94,21 @@ class SongInfo
             songName = this.metadata.songName;
             levelAuthorName = this.metadata.levelAuthorName;
         }
-        return String.Format("{0} ({1} - {2})", this.id, songName, levelAuthorName);
+        string title = String.Format("{0} ({1} - {2})", this.id, songName, levelAuthorName);
+
+        // Remove special characters
+        title = title
+            .Replace('\\', '-')
+            .Replace('/', '-')
+            .Replace('*', '^')
+            .Replace(':', '-')
+            .Replace('"', '.')
+            .Replace('<', '[')
+            .Replace('>', ']')
+            .Replace('|', ' ')
+            .Replace('?', ' ')
+            .Replace('&', ' ');
+
+        return title;
     }
 } 
